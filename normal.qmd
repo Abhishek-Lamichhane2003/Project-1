@@ -1,0 +1,108 @@
+---
+title: "Standard Normal Population"
+subtitle: "Monte Carlo investigation of the sampling distribution of the mean"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+population_mean <- 0
+population_sd <- 1
+generator <- function(sample_size) {
+  rnorm(sample_size, mean = population_mean, sd = population_sd)
+}
+```
+
+## Question and prediction
+
+The population is already normal, so I expect the sampling distribution of the
+sample mean to look approximately normal even for relatively small sample
+sizes. The theoretical mean is `r population_mean` and the theoretical standard
+deviation is `r population_sd`.
+
+## Original population
+
+```{r}
+population <- rnorm(10000, mean = population_mean, sd = population_sd)
+plot_population_histogram(population, "Original Standard Normal population", "Population value")
+```
+
+The original population is continuous, symmetric, and bell-shaped. Its mean
+and standard deviation are known from the model rather than estimated from one
+small sample.
+
+## Simulation method
+
+For each sample size, I generated 10,000 independent samples and calculated the
+mean of each sample. The sample sizes were 2, 5, 10, 20, 30, 50, 100, and 200.
+
+```{r}
+means_by_size <- simulate_sample_means(generator)
+summary_table <- summarize_sample_means(
+  means_by_size,
+  theoretical_mean = population_mean,
+  theoretical_sd = population_sd
+)
+print_summary(summary_table)
+first_screened_n <- summary_table$sample_size[summary_table$screening_rule][1]
+chosen_row <- summary_table[summary_table$sample_size == first_screened_n, , drop = FALSE]
+```
+
+## Sample sizes investigated
+
+I investigated sample sizes `n = 2, 5, 10, 20, 30, 50, 100, and 200`. I started
+with small samples to see whether normality was already present, included
+`n = 30` because it is a common classroom rule, and went up to 200 to see what
+happened for larger samples.
+
+The theoretical standard error for a sample of size `n` is
+
+$$SE(\bar X) = \frac{1}{\sqrt{n}}.$$
+
+The simulated standard deviations should be close to that formula. The
+sampling distributions should also stay centered near zero.
+
+## Visual evidence
+
+```{r}
+selected_sizes <- c(2, 10, 30, 100)
+plot_selected_diagnostics(means_by_size, selected_sizes, "Standard Normal")
+plot_selected_qq(means_by_size, selected_sizes, "Standard Normal Q-Q plot")
+```
+
+The histograms and Q-Q plots provide visual evidence about shape. Because the
+original population is normal, increasing `n` mainly makes the sampling
+distribution narrower; it does not need to wait for the CLT to create a bell
+shape.
+
+## Approximate normal decision
+
+My final answer is **n =** `r first_screened_n`. At this sample size, the
+histogram and Q-Q plot looked approximately normal, and the numerical checks
+were also close to the normal reference values. The skewness was
+`r round(chosen_row$skewness, 3)`, the excess kurtosis was
+`r round(chosen_row$excess_kurtosis, 3)`, and the simulated standard deviation
+was `r round(chosen_row$simulated_sd, 4)` compared with a theoretical standard
+error of `r round(chosen_row$theoretical_se, 4)`.
+
+This result makes sense because the original population is already normal.
+Taking the mean of normal observations still gives a normal distribution.
+Increasing `n` mainly makes the spread smaller.
+
+## What surprised me
+
+I was surprised that the sample means looked approximately normal even at the
+smallest sample size. I expected the standard error to get smaller as `n`
+increased, but I did not expect the bell shape to be present so quickly.
+

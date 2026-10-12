@@ -1,0 +1,200 @@
+---
+title: "Project 1 Final Summary"
+subtitle: "What does the Central Limit Theorem do for different populations?"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+make_result <- function(name,
+                        generator,
+                        theoretical_mean,
+                        theoretical_sd,
+                        decision_text) {
+  means <- simulate_sample_means(generator)
+  summary <- summarize_sample_means(
+    means,
+    theoretical_mean = theoretical_mean,
+    theoretical_sd = theoretical_sd
+  )
+
+  first_screened <- summary$sample_size[summary$screening_rule][1]
+  if (length(first_screened) == 0 || is.na(first_screened)) {
+    first_screened <- NA_real_
+  }
+
+  selected_row <- summary[summary$sample_size == first_screened, , drop = FALSE]
+
+  data.frame(
+    population = name,
+    first_screening_n = first_screened,
+    simulated_mean_at_first = ifelse(
+      is.na(first_screened), NA,
+      summary$simulated_mean[summary$sample_size == first_screened]
+    ),
+    simulated_sd_at_first = ifelse(
+      is.na(first_screened), NA,
+      summary$simulated_sd[summary$sample_size == first_screened]
+    ),
+    theoretical_se_at_first = ifelse(
+      is.na(first_screened), NA,
+      summary$theoretical_se[summary$sample_size == first_screened]
+    ),
+    skewness_at_first = ifelse(
+      is.na(first_screened), NA,
+      selected_row$skewness
+    ),
+    excess_kurtosis_at_first = ifelse(
+      is.na(first_screened), NA,
+      selected_row$excess_kurtosis
+    ),
+    decision = decision_text,
+    row.names = NULL
+  )
+}
+
+normal_results <- make_result(
+  "Standard Normal",
+  function(n) rnorm(n, 0, 1),
+  0,
+  1,
+  "Normal from the start"
+)
+
+die_results <- make_result(
+  "Six-sided die",
+  function(n) sample(1:6, n, replace = TRUE),
+  3.5,
+  sqrt(35 / 12),
+  "Discrete, then smoother"
+)
+
+exponential_results <- make_result(
+  "Exponential",
+  function(n) rexp(n, rate = 1),
+  1,
+  1,
+  "Right skew needed larger n"
+)
+
+binomial_results <- make_result(
+  "Small Binomial",
+  function(n) rbinom(n, size = 5, prob = 0.10),
+  0.5,
+  sqrt(5 * 0.10 * 0.90),
+  "Skew and discreteness slowed it"
+)
+
+screening_summary <- rbind(
+  normal_results,
+  die_results,
+  exponential_results,
+  binomial_results,
+  data.frame(
+    population = "Cauchy",
+    first_screening_n = NA_real_,
+    simulated_mean_at_first = NA_real_,
+    simulated_sd_at_first = NA_real_,
+    theoretical_se_at_first = NA_real_,
+    skewness_at_first = NA_real_,
+    excess_kurtosis_at_first = NA_real_,
+    decision = "Ordinary CLT not applicable",
+    row.names = NULL
+  )
+)
+```
+
+## What I investigated
+
+For each population, I repeatedly generated samples, calculated their means,
+and studied the distribution of those means. The number of observations in one
+sample is `n`; the number of repeated samples is 10,000. These are different
+quantities.
+
+I used the same basic rule for the four finite-variance populations. I looked
+for a roughly bell-shaped histogram, a fairly straight Q-Q plot, skewness close
+to zero, and excess kurtosis close to zero. I also checked whether the
+simulated standard error was close to the theoretical value. As a numerical
+starting point, I used absolute skewness no larger than 0.15 and absolute
+excess kurtosis no larger than 0.30. I used the graphs as well, instead of
+trusting the two cutoffs alone.
+
+## Comparison table
+
+```{r}
+knitr::kable(
+  print_summary(screening_summary),
+  caption = "Initial numerical screening; standard-error fields are not applicable to Cauchy"
+)
+```
+
+The `first_screening_n` column is only a starting point. The final written
+conclusion also considers the plots. The skewness and kurtosis columns show the
+diagnostics at the first screened sample size. The Cauchy population is shown
+with `NA` because its usual mean and variance do not exist.
+
+## Main findings
+
+### Standard Normal
+
+The population is already normal, so its sample means are normal for every
+sample size under the model. Increasing `n` reduces the standard error but does
+not need to create normality from a non-normal starting population.
+
+### Six-sided die
+
+The original population is discrete and uniform. Its sample means become less
+visibly discrete as `n` increases, and the CLT gives an approximately normal
+shape after enough observations. The simulated standard error can be compared
+directly with `sqrt(35 / 12) / sqrt(n)`.
+
+### Exponential
+
+The Exponential population begins strongly right-skewed. Its sample means
+usually need more observations before the skewness is small and the Q-Q plot is
+reasonably linear. This shows why the shortcut `n = 30` is not a universal rule.
+
+### Small Binomial
+
+The Small Binomial population is both discrete and right-skewed. Its means can
+take many more possible values as `n` increases, which helps the sampling
+distribution look smoother. Its results should be judged with both numerical
+and graphical evidence.
+
+### Cauchy
+
+The Cauchy situation is different from the other four cases. It is characterized
+by no regular mean and variance, thus the regular CLT assumptions and formulae
+for the standard error do not apply. Even if `n` is large, it is possible that
+extreme observations continue to dominate the given sample means. Therefore, the
+statement “under no sample size is it possible to apply the ordinary CLT” is a
+justifiable conclusion.
+
+## Is `n = 30` a rule that is always correct?
+
+No. The outcome of the experiments demonstrates that the answer depends on the
+population. Thus, normal population results in quick good behavior of the CLT,
+symmetric discrete population takes it much longer, skewed population requires
+a larger sample if compared to the normal ones, and the Cauchy population
+does not meet the condition of finite variance as required for ordinary CLT.
+Therefore, `n = 30` can be treated as an informal rule and not valid universal
+theorem.
+
+## Limitations
+
+The phrase “approximately normal” requires interpretation, and different
+reasonable criteria may lead to slightly different cutoff values. In addition,
+the exact results of the simulations depend on the reproducible random seed used
+in them.
+

@@ -1,0 +1,108 @@
+---
+title: "Small Binomial Population"
+subtitle: "Monte Carlo investigation of the sampling distribution of the mean"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+binomial_size <- 5
+probability <- 0.10
+population_mean <- binomial_size * probability
+population_sd <- sqrt(binomial_size * probability * (1 - probability))
+generator <- function(sample_size) {
+  rbinom(sample_size, size = binomial_size, prob = probability)
+}
+```
+
+## Question and prediction
+
+This population is discrete and strongly concentrated near zero because the
+probability of success is only 0.10. I expect it to need a larger sample size
+than a symmetric population before its sample means look smooth and normal.
+
+The theoretical mean is `r population_mean` and the theoretical standard
+deviation is `r round(population_sd, 4)`.
+
+## Original population
+
+```{r}
+population <- rbinom(10000, size = binomial_size, prob = probability)
+plot_population_bar(
+  population,
+  "Original Small Binomial population",
+  "Number of successes"
+)
+```
+
+The original distribution is discrete and right-skewed. This makes it a useful
+case for comparing the CLT with the already-symmetric Standard Normal case.
+
+## Simulation and theoretical comparison
+
+```{r}
+means_by_size <- simulate_sample_means(generator)
+summary_table <- summarize_sample_means(
+  means_by_size,
+  theoretical_mean = population_mean,
+  theoretical_sd = population_sd
+)
+print_summary(summary_table)
+first_screened_n <- summary_table$sample_size[summary_table$screening_rule][1]
+chosen_row <- summary_table[summary_table$sample_size == first_screened_n, , drop = FALSE]
+```
+
+## Sample sizes investigated
+
+I investigated sample sizes `n = 2, 5, 10, 20, 30, 50, 100, and 200`. I started
+with small values to show the discreteness and right skew, included `n = 30`
+because it is a common classroom rule, and used larger values to see how many
+observations were needed for the sample means to become smoother.
+
+The theoretical standard error is `population_sd / sqrt(n)`. I check whether
+the simulated standard deviation approaches that value as `n` increases.
+
+## Visual evidence
+
+```{r}
+selected_sizes <- c(5, 20, 50, 100)
+plot_selected_diagnostics(means_by_size, selected_sizes, "Small Binomial")
+plot_selected_qq(means_by_size, selected_sizes, "Small Binomial Q-Q plot")
+```
+
+At small sample sizes, the means can remain visibly discrete. With larger
+sample sizes, the spacing between possible means becomes smaller relative to
+the overall spread, so the sampling distribution can look more continuous.
+
+## Approximate normal decision
+
+My final answer is **n =** `r first_screened_n`. At this sample size, the
+histogram looked smoother and more balanced, and the Q-Q plot was more nearly
+straight than it was for the smaller sample sizes. The skewness was
+`r round(chosen_row$skewness, 3)`, the excess kurtosis was
+`r round(chosen_row$excess_kurtosis, 3)`, and the simulated standard deviation
+was `r round(chosen_row$simulated_sd, 4)` compared with a theoretical standard
+error of `r round(chosen_row$theoretical_se, 4)`.
+
+The original population is concentrated near zero and is right-skewed. The
+sample means become smoother as `n` increases. This value was larger than the
+die result, which shows that both skewness and discreteness can slow down the
+normal-looking shape.
+
+## What surprised me
+
+I was surprised that the Small Binomial distribution needed a larger sample
+size than the die. Even though both populations are discrete, the low success
+probability made this population more concentrated and more right-skewed.
+

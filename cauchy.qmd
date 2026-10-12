@@ -1,0 +1,133 @@
+---
+title: "Cauchy Population"
+subtitle: "A stress test for the assumptions of the Central Limit Theorem"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+location <- 0
+scale <- 1
+generator <- function(sample_size) {
+  rcauchy(sample_size, location = location, scale = scale)
+}
+```
+
+## Why this case is different
+
+The standard Cauchy distribution has extremely heavy tails. Its ordinary mean
+and variance do not exist, so there is no finite theoretical standard deviation
+to insert into `sigma / sqrt(n)`. This means the usual finite-variance CLT
+argument is not applicable.
+
+This is not a technical problem with the simulation. It is the main reason the
+Cauchy population is included.
+
+## Original population
+
+```{r}
+population <- rcauchy(10000, location = location, scale = scale)
+population_for_plot <- population[abs(population) <= 25]
+plot_population_histogram(
+  population_for_plot,
+  "Cauchy population (values beyond +/-25 omitted from display)",
+  "Population value"
+)
+```
+
+The display is trimmed only so that a few extreme values do not make the plot
+unreadable. The extreme values themselves are part of the distribution and
+are not removed from the sample-mean simulations below.
+
+## Simulation
+
+I investigated sample sizes `n = 2, 5, 10, 20, 30, 50, 100, and 200`. I used
+the same range as the other distributions so that the comparisons were fair.
+The smaller values show the immediate effect of the heavy tails, while the
+larger values test whether increasing `n` fixes the problem.
+
+```{r}
+means_by_size <- simulate_sample_means(generator)
+
+cauchy_table <- do.call(rbind, lapply(names(means_by_size), function(size_name) {
+  means <- means_by_size[[size_name]]
+  data.frame(
+    sample_size = as.numeric(size_name),
+    simulated_mean = mean(means),
+    simulated_sd = sd(means),
+    median = median(means),
+    skewness = skewness(means),
+    excess_kurtosis = excess_kurtosis(means),
+    proportion_beyond_10 = mean(abs(means) > 10),
+    row.names = NULL
+  )
+}))
+
+print_summary(cauchy_table)
+```
+
+The simulated mean, standard deviation, skewness, and kurtosis can change a
+lot when extreme values appear. A stable finite-variance standard-error
+comparison is not available here.
+
+## Visual evidence
+
+```{r}
+selected_sizes <- c(2, 10, 30, 200)
+
+old_par <- par(no.readonly = TRUE)
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+
+for (sample_size in selected_sizes) {
+  means <- means_by_size[[as.character(sample_size)]]
+  means_for_plot <- means[abs(means) <= 25]
+  hist(
+    means_for_plot,
+    breaks = 40,
+    col = "#f4a261",
+    border = "white",
+    main = paste0("Cauchy means, n = ", sample_size,
+                  " (display trimmed)"),
+    xlab = "Sample mean"
+  )
+}
+par(old_par)
+
+plot_selected_qq(means_by_size, selected_sizes, "Cauchy Q-Q plot")
+```
+
+The histograms are trimmed only for readability. The numerical summaries and
+Q-Q plots use the simulated values, so extreme departures from the line should
+be interpreted as evidence of heavy tails rather than treated as ordinary
+sampling noise.
+
+## Approximate normal decision
+
+The Cauchy population did not behave like the other populations. Extreme
+values continued to affect the sample means even when `n` became large. Since
+the Cauchy distribution has no finite ordinary mean or variance, the usual CLT
+standard-error formula does not apply. Therefore, I did not choose a sample
+size for this distribution. My final answer is: **there is no reasonable value
+of `n` under the ordinary CLT conditions**. The histograms and Q-Q plots kept
+showing heavy-tail behavior, and the simulated mean, standard deviation,
+skewness, and kurtosis were unstable. Because there is no finite theoretical
+standard error to compare with, the usual numerical check cannot be used here.
+
+## What surprised me
+
+I was surprised that increasing the sample size to 200 did not make the
+sample-mean distribution behave like the other populations. A few extreme
+values could still have a large effect, which is exactly why the Cauchy case is
+an important exception to the usual CLT discussion.
+

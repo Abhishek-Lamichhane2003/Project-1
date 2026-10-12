@@ -1,0 +1,102 @@
+---
+title: "Exponential Population"
+subtitle: "Monte Carlo investigation of the sampling distribution of the mean"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+rate <- 1
+population_mean <- 1 / rate
+population_sd <- 1 / rate
+generator <- function(sample_size) {
+  rexp(sample_size, rate = rate)
+}
+```
+
+## Question and prediction
+
+The Exponential population is continuous and strongly right-skewed. I expect
+its sample means to need more observations than the Standard Normal or die
+population before the shape looks approximately normal.
+
+For an Exponential distribution with rate 1, the theoretical mean and standard
+deviation are both 1.
+
+## Original population
+
+```{r}
+population <- rexp(10000, rate = rate)
+plot_population_histogram(population, "Original Exponential population", "Population value")
+```
+
+The long right tail is the main feature that may slow the convergence of the
+sampling distribution.
+
+## Simulation and theoretical comparison
+
+```{r}
+means_by_size <- simulate_sample_means(generator)
+summary_table <- summarize_sample_means(
+  means_by_size,
+  theoretical_mean = population_mean,
+  theoretical_sd = population_sd
+)
+print_summary(summary_table)
+first_screened_n <- summary_table$sample_size[summary_table$screening_rule][1]
+chosen_row <- summary_table[summary_table$sample_size == first_screened_n, , drop = FALSE]
+```
+
+## Sample sizes investigated
+
+I investigated sample sizes `n = 2, 5, 10, 20, 30, 50, 100, and 200`. I used
+small values to show the initial right skew and larger values to see how much
+the long tail slowed the approach to normality. I included `n = 30` because it
+is a common classroom rule, but I did not assume it would work here.
+
+The theoretical standard error is `1 / sqrt(n)`. I compare it with the
+simulated standard deviation of the sample means.
+
+## Visual evidence
+
+```{r}
+selected_sizes <- c(5, 20, 50, 200)
+plot_selected_diagnostics(means_by_size, selected_sizes, "Exponential")
+plot_selected_qq(means_by_size, selected_sizes, "Exponential Q-Q plot")
+```
+
+I expect the smaller sample sizes to retain some right skew. At larger sample
+sizes, the center should become more symmetric, although the tails may still
+show departures from a perfect normal line.
+
+## Approximate normal decision
+
+My final answer is **n =** `r first_screened_n`. At this sample size, the
+histogram was much more balanced, and the Q-Q plot was more nearly straight
+than it was for the smaller sample sizes. The skewness was
+`r round(chosen_row$skewness, 3)`, the excess kurtosis was
+`r round(chosen_row$excess_kurtosis, 3)`, and the simulated standard deviation
+was `r round(chosen_row$simulated_sd, 4)` compared with a theoretical standard
+error of `r round(chosen_row$theoretical_se, 4)`.
+
+The smaller sample sizes still showed right skew. The first reasonable value
+was much larger than the value for the Normal population because the original
+Exponential distribution has a long right tail.
+
+## What surprised me
+
+I was surprised that the Exponential distribution needed a much larger sample
+size than the Normal population. The standard error matched the theoretical
+formula well, but the shape still took longer to look normal.
+

@@ -1,0 +1,105 @@
+---
+title: "Six-Sided Die Population"
+subtitle: "Monte Carlo investigation of the sampling distribution of the mean"
+author: "Abhishek Lamichhane — Student ID: 019102551"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+source("R/helpers.R")
+set.seed(STUDENT_SEED)
+
+die_values <- 1:6
+population_mean <- mean(die_values)
+population_sd <- sqrt(35 / 12)
+generator <- function(sample_size) {
+  sample(die_values, size = sample_size, replace = TRUE)
+}
+```
+
+## Question and prediction
+
+The original population is discrete and flat rather than bell-shaped. I expect
+the sample means to become smoother and more normal as the sample size grows.
+For a fair six-sided die, the theoretical mean is 3.5 and the population
+standard deviation is `r round(population_sd, 4)`.
+
+## Original population
+
+```{r}
+plot_population_bar(
+  sample(die_values, 10000, replace = TRUE),
+  "Original six-sided die population",
+  "Die value"
+)
+```
+
+The bar chart shows that the original values are equally likely, but the
+population is not continuous and is not bell-shaped.
+
+## Simulation and theoretical comparison
+
+```{r}
+means_by_size <- simulate_sample_means(generator)
+summary_table <- summarize_sample_means(
+  means_by_size,
+  theoretical_mean = population_mean,
+  theoretical_sd = population_sd
+)
+print_summary(summary_table)
+first_screened_n <- summary_table$sample_size[summary_table$screening_rule][1]
+chosen_row <- summary_table[summary_table$sample_size == first_screened_n, , drop = FALSE]
+```
+
+## Sample sizes investigated
+
+I investigated sample sizes `n = 2, 5, 10, 20, 30, 50, 100, and 200`. I used
+small values first because a die produces a discrete population, and I wanted
+to see how quickly averaging would smooth it out. I also included `n = 30`
+because it is a common classroom rule and included larger values for comparison.
+
+For each sample size, the simulated standard deviation of the means can be
+compared with `population_sd / sqrt(n)`. The comparison helps check whether the
+simulation agrees with the CLT's standard-error prediction.
+
+## Visual evidence
+
+```{r}
+selected_sizes <- c(2, 5, 10, 30)
+plot_selected_diagnostics(means_by_size, selected_sizes, "Six-sided die")
+plot_selected_qq(means_by_size, selected_sizes, "Six-sided die Q-Q plot")
+```
+
+The smallest sample sizes can show visible discreteness because only certain
+averages are possible. With larger samples, the possible averages are closer
+together and the overall shape should become more bell-like.
+
+## Approximate normal decision
+
+My final answer is **n =** `r first_screened_n`. At this sample size, the
+histogram was more bell-shaped than it was for the smaller values, and the Q-Q
+plot was reasonably close to a straight line. The skewness was
+`r round(chosen_row$skewness, 3)`, the excess kurtosis was
+`r round(chosen_row$excess_kurtosis, 3)`, and the simulated standard deviation
+was `r round(chosen_row$simulated_sd, 4)` compared with a theoretical standard
+error of `r round(chosen_row$theoretical_se, 4)`.
+
+The first sample means are still somewhat discrete because they can only take
+certain values. As `n` increases, the possible averages become closer
+together. The results show that a discrete population can still have
+approximately normal sample means.
+
+## What surprised me
+
+I was surprised that the die's sample means became approximately normal with a
+fairly small sample size, even though the original population was not
+continuous and was not bell-shaped.
+
